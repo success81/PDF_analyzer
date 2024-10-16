@@ -1,0 +1,79 @@
+import PyPDF2
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
+import os
+import logging
+from PyPDF2 import PdfReader, PdfWriter
+from reportlab.lib.units import inch
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+
+def add_mlx_to_pdf(input_pdf_path, output_pdf_path):
+    try:
+        # Open the original PDF
+        with open(input_pdf_path, 'rb') as file:
+            reader = PdfReader(file)
+            writer = PdfWriter()
+
+            # Iterate through all pages
+            for i in range(len(reader.pages)):
+                try:
+                    # Get the page
+                    page = reader.pages[i]
+                    
+                    # Create a new PDF with Reportlab
+                    packet = BytesIO()
+                    can = canvas.Canvas(packet, pagesize=(page.mediabox.width, page.mediabox.height))
+                    can.setFont("Helvetica", 10)
+                    mlx_number = f"MLX{i+1:02d}"
+                    can.drawString(30, page.mediabox.height - 30, mlx_number)
+                    can.save()
+
+                    # Move to the beginning of the BytesIO buffer
+                    packet.seek(0)
+                    new_pdf = PdfReader(packet)
+
+                    # Merge the new pdf with the existing page
+                    page.merge_page(new_pdf.pages[0])
+
+                    # Add the page to the writer
+                    writer.add_page(page)
+
+                except Exception as e:
+                    logging.error(f"Error processing page {i + 1} of '{input_pdf_path}': {e}")
+                    # If there's an error, try to add the original page without modification
+                    try:
+                        writer.add_page(reader.pages[i])
+                    except:
+                        logging.error(f"Could not add original page {i + 1} of '{input_pdf_path}'")
+
+            # Write the output file
+            with open(output_pdf_path, 'wb') as output_file:
+                writer.write(output_file)
+
+    except Exception as e:
+        logging.error(f"Error processing file '{input_pdf_path}': {e}")
+        # If we can't process the file at all, copy the original file to the output path
+        import shutil
+        shutil.copy2(input_pdf_path, output_pdf_path)
+
+def extract_pdf_content(pdf_path):
+    try:
+        reader = PdfReader(pdf_path)
+        processed_content = []
+
+        for i in range(len(reader.pages)):
+            try:
+                text = reader.pages[i].extract_text()
+                mlx_number = f"MLX{i+1:02d}"
+                processed_content.append(f"{mlx_number}\n\n{text}")
+            except Exception as e:
+                logging.error(f"Error extracting content from page {i + 1} of '{pdf_path}': {e}")
+                processed_content.append(f"Error extracting text from page {i+1}.\n\n")
+
+        return "\n\n".join(processed_content)
+    except Exception as e:
+        logging.error(f"Error processing file '{pdf_path}': {e}")
+        return f"Error processing file. Please check if '{os.path.basename(pdf_path)}' is a valid PDF."

@@ -1,0 +1,9 @@
+Flask==3.0.3
+Werkzeug==3.0.3
+PyPDF2==3.0.1
+reportlab==4.2.2
+fpdf==1.7.2
+gunicorn==22.0.0
+vertexai
+pikepdf==9.2.1
+PyMuPDF==1.24.7

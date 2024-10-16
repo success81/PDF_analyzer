@@ -1,0 +1,58 @@
+runtime: python39  # Use Python 3.9 runtime
+
+entrypoint: gunicorn -b :$PORT app:app  # Command to start the app
+
+env_variables:
+  FLASK_ENV: production
+
+instance_class: F4_1G  # Provides 2 GB of memory
+
+# Automatic scaling (optional)
+automatic_scaling:
+  target_cpu_utilization: 0.65
+  max_instances: 3
+
+
+
+runtime: python39  # Use Python 3.9 runtime
+
+entrypoint: gunicorn -b :$PORT app:app  # The command to start your Flask app
+
+# Optional environment variables
+env_variables:
+  FLASK_ENV: production
+
+# Instance class (optional) - can be adjusted based on traffic needs
+instance_class: F2
+
+# Automatic scaling (default behavior)
+automatic_scaling:
+  target_cpu_utilization: 0.65
+  max_instances: 3
+
+
+
+runtime: python
+env: flex
+entrypoint: gunicorn -b :$PORT app:app  # gunicorn entry point
+
+automatic_scaling:
+  max_num_instances: 5
+  min_num_instances: 1
+  cool_down_period_sec: 180
+  cpu_utilization:
+    target_utilization: 0.75
+
+resources:
+  cpu: 2
+  memory_gb: 4
+  disk_size_gb: 10
+
+# The health check will allow requests up to 10 minutes in flex environment
+health_check:
+  timeout_sec: 600
+  check_interval_sec: 5
+  healthy_threshold: 2
+  unhealthy_threshold: 10
+  restart_threshold: 10
+  host: 0.0.0.0

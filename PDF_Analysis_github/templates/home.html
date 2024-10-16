@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPO PDF Analyzer</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        .background {
+            background-image: url('{{ url_for('static', filename='windmill.jpg') }}');
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1;
+        }
+        .content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+        }
+        .title {
+            font-size: 5em;
+            color: #4CAF50;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin: 0 0 40px 0;
+            text-align: center;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #2c3e50;
+        }
+        input[type="file"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        textarea {
+            height: 150px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #pdf-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        #pdf-list li {
+            background-color: rgba(76, 175, 80, 0.1);
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .delete-pdf {
+            color: #e74c3c;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="background">
+        <div class="overlay"></div>
+        <div class="content">
+            <h1 class="title">PDF Analyzer</h1>
+            <div class="container">
+                <div class="section">
+                    <h2>PDF Upload</h2>
+                    <form id="upload-form" enctype="multipart/form-data">
+                        <input type="file" name="file[]" accept=".pdf" multiple required>
+                        <button type="submit">Upload</button>
+                    </form>
+                    <ul id="pdf-list"></ul>
+                </div>
+                <div class="section">
+                    <h2>Questions</h2>
+                    <form id="process-form">
+                        <textarea name="questions" placeholder="Enter your questions separated by |" required></textarea>
+                        <button type="submit">Process</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedPDFs = [];
+
+        document.getElementById('upload-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.json())
+              .then(data => {
+                  if(data.error) {
+                      alert('Error: ' + data.error);
+                  } else {
+                      alert(data.message);
+                      uploadedPDFs = uploadedPDFs.concat(data.files);
+                      updatePDFList();
+                  }
+              })
+              .catch(error => {
+                  console.error('Error:', error);
+                  alert('An error occurred during upload. Please check the console for details.');
+              });
+        });
+
+        function updatePDFList() {
+            const list = document.getElementById('pdf-list');
+            list.innerHTML = '';
+            uploadedPDFs.forEach(file => {
+                const li = document.createElement('li');
+                li.innerHTML = `${file} <span class="delete-pdf" onclick="deletePDF('${file}')">Delete</span>`;
+                list.appendChild(li);
+            });
+        }
+
+        function deletePDF(filename) {
+            fetch('/delete_pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({filename: filename})
+            }).then(response => response.json())
+              .then(data => {
+                  if(data.error) {
+                      alert('Error: ' + data.error);
+                  } else {
+                      alert(data.message);
+                      uploadedPDFs = uploadedPDFs.filter(f => f !== filename);
+                      updatePDFList();
+                  }
+              })
+              .catch(error => {
+                  console.error('Error:', error);
+                  alert('An error occurred while deleting the PDF. Please check the console for details.');
+              });
+        }
+
+        document.getElementById('process-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (uploadedPDFs.length === 0) {
+                alert('Please upload at least one PDF file first.');
+                return;
+            }
+            var formData = new FormData(this);
+            formData.append('files', JSON.stringify(uploadedPDFs));
+            fetch('/process', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            }).then(html => {
+                document.open();
+                document.write(html);
+                document.close();
+            }).catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during processing. Please check the console for details.');
+            });
+        });
+    </script>
+</body>
+</html>
